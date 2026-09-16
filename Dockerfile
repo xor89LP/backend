@@ -1,11 +1,13 @@
-# --- Étape 1 : compiler l'application Angular ---
-FROM node:20-alpine AS build
+# --- Étape 1 : construire le .jar ---
+FROM maven:3.9-eclipse-temurin-21 AS build
 WORKDIR /app
-COPY package*.json ./
-RUN npm ci
-COPY . .
-RUN npm run build
-# --- Étape 2 : servir les fichiers statiques avec nginx ---
-FROM nginx:alpine
-COPY --from=build /app/dist/NOM_DU_PROJET/browser /usr/share/nginx/html
-EXPOSE 80
+COPY pom.xml .
+RUN mvn dependency:go-offline
+COPY src ./src
+RUN mvn clean package -DskipTests
+# --- Étape 2 : image finale, légère ---
+FROM eclipse-temurin:21-jre
+WORKDIR /app
+COPY --from=build /app/target/*.jar app.jar
+EXPOSE 8080
+ENTRYPOINT ["java", "-jar", "app.jar"]
